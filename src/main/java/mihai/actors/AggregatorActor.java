@@ -23,16 +23,20 @@ public class AggregatorActor extends UntypedActor {
     Map<String, TradeOutput<Trade>> matchedTradesMap = new HashMap<>();
     Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = new HashMap<>();
     Map<String, TradeOutput<Trade>> unmatchedTradesMap = new HashMap<>();
-    Map<String, TradeOutput<CcpTrade>> unmatchedCcpTrades = new HashMap<>();
+    Map<String, TradeOutput<CcpTrade>> unmatchedCcpTradesMap = new HashMap<>();
 
     @Override
     public void onReceive(Object message) throws Throwable {
         if (message instanceof TradesMatchRequest) {
-            TradesMatchResponse tradesMatchResponse = new TradesMatchResponse(matchedTradesMap, matchedCcpTradesMap, unmatchedTradesMap, unmatchedCcpTrades);
+            TradesMatchResponse tradesMatchResponse = new TradesMatchResponse(matchedTradesMap, matchedCcpTradesMap, unmatchedTradesMap, unmatchedCcpTradesMap);
             getSender().tell(tradesMatchResponse, getSelf());
         } else if (message instanceof TradesListsRequest) {
             List<Trade> tradeList = matchedTradesMap.values().stream().map(tradeOutput -> tradeOutput.getTrade()).collect(Collectors.toList());
+            tradeList.addAll(unmatchedTradesMap.values().stream().map(tradeOutput -> tradeOutput.getTrade()).collect(Collectors.toList()));
+
             List<CcpTrade> ccpTradeList = matchedCcpTradesMap.values().stream().map(tradeOutput -> tradeOutput.getTrade()).collect(Collectors.toList());
+            ccpTradeList.addAll(unmatchedCcpTradesMap.values().stream().map(tradeOutput -> tradeOutput.getTrade()).collect(Collectors.toList()));
+
             TradesListsResponse tradesListsResponse = new TradesListsResponse(tradeList, ccpTradeList);
             getSender().tell(tradesListsResponse, getSelf());
         } else if (message instanceof AggregatorMessage) {
@@ -72,9 +76,9 @@ public class AggregatorActor extends UntypedActor {
                 }
             } else {
                 if (AggregatorMessage.OperationType.ADD.equals(operation.getOperationType())) {
-                    unmatchedCcpTrades.put(ccpTrade.getExchangeReference(), new TradeOutput<>(ccpTrade, operation.getTradeComment().getComment()));
+                    unmatchedCcpTradesMap.put(ccpTrade.getExchangeReference(), new TradeOutput<>(ccpTrade, operation.getTradeComment().getComment()));
                 } else {
-                    unmatchedCcpTrades.remove(ccpTrade.getExchangeReference());
+                    unmatchedCcpTradesMap.remove(ccpTrade.getExchangeReference());
                 }
             }
         }
