@@ -45,6 +45,18 @@ public class Trade implements Serializable {
                 .build();
     }
 
+    public static Trade aTrade(CcpTrade ccpTrade) {
+        return new Trade.TradeBuilder(ccpTrade.getExchangeReference())
+                .withReference(randomAlphabetic(10))
+                .withTradeDate(ccpTrade.getTradeDate())
+                .withIsin(ccpTrade.getIsin())
+                .withDirection(ccpTrade.getDirection())
+                .withQuantity(ccpTrade.getQuantity())
+                .withCurrency(ccpTrade.getCurrency())
+                .withAmount(ccpTrade.getAmount())
+                .build();
+    }
+
     public static Trade aTrade() {
         return aTrade(randomAlphabetic(10));
     }

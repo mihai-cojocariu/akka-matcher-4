@@ -12,6 +12,8 @@ import mihai.actors.SupervisorActor;
 import mihai.dto.CcpTrade;
 import mihai.dto.Trade;
 import mihai.dto.TradeOutput;
+import mihai.messages.CancelCcpTradeMessage;
+import mihai.messages.CancelTradeMessage;
 import mihai.messages.NewCcpTradeMessage;
 import mihai.messages.NewTradeMessage;
 import mihai.messages.TradesListsRequest;
@@ -108,57 +110,61 @@ public class TradesTest {
         }};
     }
 
-//    @Test
-//    public void canCancelATrade() {
-//        new JavaTestKit(system) {{
-//            log.debug("Starting canCancelATrade()...");
-//
-//            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
-//
-//            final Trade trade1 = Trade.aTrade();
-//            final Trade trade2 = Trade.aTrade();
-//            supervisor.tell(new NewTradeMessage(trade1), getTestActor());
-//            supervisor.tell(new NewTradeMessage(trade2), getTestActor());
-//            supervisor.tell(new CancelTradeMessage(trade1), getTestActor());
-//            supervisor.tell(new TradesRequest(UUID.randomUUID().toString(), RequestType.GET_TRADES), getTestActor());
-//
-//            final TradesResponseMessage response = expectMsgClass(TradesResponseMessage.class);
-//
-//            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
-//                protected void run() {
-//                    assertEquals(trade2, response.getTrades().get(0));
-//                    assertEquals(1, response.getTrades().size());
-//                    logUsedMemory();
-//                }
-//            };
-//        }};
-//    }
-//
-//    @Test
-//    public void canCancelACcpTrade() {
-//        new JavaTestKit(system) {{
-//            log.debug("Starting canCancelACcpTrade()...");
-//
-//            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
-//
-//            final CcpTrade ccpTrade1 = CcpTrade.aCcpTrade();
-//            final CcpTrade ccpTrade2 = CcpTrade.aCcpTrade();
-//            supervisor.tell(new NewCcpTradeMessage(ccpTrade1), getTestActor());
-//            supervisor.tell(new NewCcpTradeMessage(ccpTrade2), getTestActor());
-//            supervisor.tell(new CancelCcpTradeMessage(ccpTrade1), getTestActor());
-//            supervisor.tell(new TradesRequest(UUID.randomUUID().toString(), RequestType.GET_CCP_TRADES), getTestActor());
-//
-//            final TradesResponseMessage response = expectMsgClass(TradesResponseMessage.class);
-//
-//            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
-//                protected void run() {
-//                    assertEquals(ccpTrade2, response.getCcpTrades().get(0));
-//                    assertEquals(1, response.getCcpTrades().size());
-//                    logUsedMemory();
-//                }
-//            };
-//        }};
-//    }
+    @Test
+    public void canCancelATrade() {
+        new JavaTestKit(system) {{
+            log.debug("Starting canCancelATrade()...");
+
+            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
+
+            final Trade trade1 = Trade.aTrade();
+            final Trade trade2 = Trade.aTrade();
+            supervisor.tell(new NewTradeMessage(trade1), getTestActor());
+            supervisor.tell(new NewTradeMessage(trade2), getTestActor());
+            supervisor.tell(new CancelTradeMessage(trade1), getTestActor());
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesListsRequest(), getTestActor());
+
+            final TradesListsResponse response = expectMsgClass(TradesListsResponse.class);
+
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
+                    assertEquals(1, response.getTradeList().size());
+                    assertEquals(trade2, response.getTradeList().get(0));
+
+                    logUsedMemory();
+                }
+            };
+        }};
+    }
+
+    @Test
+    public void canCancelACcpTrade() {
+        new JavaTestKit(system) {{
+            log.debug("Starting canCancelACcpTrade()...");
+
+            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
+
+            final CcpTrade ccpTrade1 = CcpTrade.aCcpTrade();
+            final CcpTrade ccpTrade2 = CcpTrade.aCcpTrade();
+            supervisor.tell(new NewCcpTradeMessage(ccpTrade1), getTestActor());
+            supervisor.tell(new NewCcpTradeMessage(ccpTrade2), getTestActor());
+            supervisor.tell(new CancelCcpTradeMessage(ccpTrade1), getTestActor());
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesListsRequest(), getTestActor());
+
+            final TradesListsResponse response = expectMsgClass(TradesListsResponse.class);
+
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
+                    assertEquals(1, response.getCcpTradeList().size());
+                    assertEquals(ccpTrade2, response.getCcpTradeList().get(0));
+
+                    logUsedMemory();
+                }
+            };
+        }};
+    }
 
     @Test
     public void canPerformAMatch() {
@@ -225,34 +231,45 @@ public class TradesTest {
         }};
     }
 
-//    @Test
-//    public void canIdentifyAnUnmatchPostCancel(){
-//        new JavaTestKit(system) {{
-//            log.debug("Starting canIdentifyAnUnmatchPostCancel()...");
-//
-//            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
-//
-//            final Trade trade = Trade.aTrade();
-//            final CcpTrade ccpTrade = CcpTrade.aCcpTrade(trade.getExchangeReference());
-//
-//            supervisor.tell(new NewTradeMessage(trade), getTestActor());
-//            supervisor.tell(new NewCcpTradeMessage(ccpTrade), getTestActor());
-//            supervisor.tell(new CancelTradeMessage(trade), getTestActor());
-//            supervisor.tell(new TradesRequest(UUID.randomUUID().toString(), RequestType.GET_UNMATCHED_TRADES), getTestActor());
-//
-//            final TradesResponseMessage response = expectMsgClass(TradesResponseMessage.class);
-//
-//            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
-//                protected void run() {
-//                    assertEquals(0, response.getTrades().size());
-//                    assertEquals(1, response.getCcpTrades().size());
-//                    assertEquals(ccpTrade, response.getCcpTrades().get(0));
-//                    logUsedMemory();
-//                }
-//            };
-//        }};
-//    }
-//
+    @Test
+    public void canIdentifyAnUnmatchPostCancel(){
+        new JavaTestKit(system) {{
+            log.debug("Starting canIdentifyAnUnmatchPostCancel()...");
+
+            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
+
+            final Trade trade1 = Trade.aTrade();
+            final CcpTrade ccpTrade1 = CcpTrade.aCcpTrade(trade1);
+            final Trade trade2 = Trade.aTrade();
+            supervisor.tell(new NewTradeMessage(trade1), getTestActor());
+            supervisor.tell(new NewCcpTradeMessage(ccpTrade1), getTestActor());
+            supervisor.tell(new NewTradeMessage(trade2), getTestActor());
+            supervisor.tell(new CancelTradeMessage(trade1), getTestActor());
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesMatchRequest(), getTestActor());
+
+            final TradesMatchResponse response = expectMsgClass(TradesMatchResponse.class);
+
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
+                    Map<String, TradeOutput<Trade>> matchedTradesMap = response.getMatchedTradesMap();
+                    Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = response.getMatchedCcpTradesMap();
+                    Map<String, TradeOutput<Trade>> unmatchedTradesMap = response.getUnmatchedTradesMap();
+                    Map<String, TradeOutput<CcpTrade>> unmatchedCcpTradesMap = response.getUnmatchedCcpTradesMap();
+
+                    assertEquals(0, matchedTradesMap.size());
+                    assertEquals(1, unmatchedTradesMap.size());
+                    assertEquals(trade2.getExchangeReference(), unmatchedTradesMap.keySet().iterator().next());
+                    assertEquals(0, matchedCcpTradesMap.size());
+                    assertEquals(1, unmatchedCcpTradesMap.size());
+                    assertEquals(ccpTrade1.getExchangeReference(), unmatchedCcpTradesMap.keySet().iterator().next());
+
+                    logUsedMemory();
+                }
+            };
+        }};
+    }
+
     @Test
     public void testMatchTradesHighVolume() {
         new JavaTestKit(system) {{
@@ -292,10 +309,10 @@ public class TradesTest {
                     log.debug("Unmatched trades : {}, Unmatched CCP trades: {}", unmatchedTradesMap.size(), unmatchedCcpTradesMap.size());
                     logUsedMemory();
 
-                    assertEquals(0, matchedTradesMap.size());
-                    assertEquals(0, matchedCcpTradesMap.size());
-                    assertEquals(30000, unmatchedTradesMap.size());
-                    assertEquals(30000, unmatchedCcpTradesMap.size());
+                    assertEquals(10000, matchedTradesMap.size());
+                    assertEquals(10000, matchedCcpTradesMap.size());
+                    assertEquals(20000, unmatchedTradesMap.size());
+                    assertEquals(20000, unmatchedCcpTradesMap.size());
                 }
             };
 
