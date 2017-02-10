@@ -27,6 +27,14 @@ public class Utils {
         }
     }
 
+    public static void delayExec(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
 //    public static void loadTrades(ActorRef supervisor, ActorRef testActor) {
 //        String[] tradesArray = new String[] {
 //                "T100, EX100, 2017-02-07, ISIN100, BUY, 100, EUR, 200",

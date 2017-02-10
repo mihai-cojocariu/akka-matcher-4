@@ -68,22 +68,19 @@ public class TradesTest {
 
             final Trade trade = Trade.aTrade();
             supervisor.tell(new NewTradeMessage(trade), getTestActor());
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesListsRequest(), getTestActor());
 
-            Runnable task = () -> {
-                supervisor.tell(new TradesListsRequest(), getTestActor());
+            TradesListsResponse response = expectMsgClass(TradesListsResponse.class);
 
-                TradesListsResponse response = expectMsgClass(TradesListsResponse.class);
-
-                new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
-                    protected void run() {
-                        assertEquals(true, response.getTradeList().contains(trade));
-                        assertEquals(1, response.getTradeList().size());
-                        logUsedMemory();
-                    }
-                };
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
+                    assertEquals(true, response.getTradeList().contains(trade));
+                    assertEquals(1, response.getTradeList().size());
+                    logUsedMemory();
+                }
             };
 
-            system.scheduler().scheduleOnce(Duration.create(RESULTS_DELAY_MS, TimeUnit.MILLISECONDS), task, system.dispatcher());
         }};
     }
 
@@ -96,22 +93,18 @@ public class TradesTest {
 
             final CcpTrade ccpTrade = CcpTrade.aCcpTrade();
             supervisor.tell(new NewCcpTradeMessage(ccpTrade), getTestActor());
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesListsRequest(), getTestActor());
 
-            Runnable task = () -> {
-                supervisor.tell(new TradesListsRequest(), getTestActor());
+            TradesListsResponse response = expectMsgClass(TradesListsResponse.class);
 
-                TradesListsResponse response = expectMsgClass(TradesListsResponse.class);
-
-                new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
-                    protected void run() {
-                        assertEquals(true, response.getCcpTradeList().contains(ccpTrade));
-                        assertEquals(1, response.getCcpTradeList().size());
-                        logUsedMemory();
-                    }
-                };
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
+                    assertEquals(true, response.getCcpTradeList().contains(ccpTrade));
+                    assertEquals(1, response.getCcpTradeList().size());
+                    logUsedMemory();
+                }
             };
-
-            system.scheduler().scheduleOnce(Duration.create(RESULTS_DELAY_MS, TimeUnit.MILLISECONDS), task, system.dispatcher());
         }};
     }
 
@@ -175,31 +168,28 @@ public class TradesTest {
             final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
 
             final Trade trade = Trade.aTrade();
-            final CcpTrade ccpTrade = CcpTrade.aCcpTrade(trade.getExchangeReference());
+            final CcpTrade ccpTrade = CcpTrade.aCcpTrade(trade);
 
             supervisor.tell(new NewTradeMessage(trade), getTestActor());
             supervisor.tell(new NewCcpTradeMessage(ccpTrade), getTestActor());
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesMatchRequest(), getTestActor());
 
-            Runnable task = () -> {
-                supervisor.tell(new TradesMatchRequest(), getTestActor());
+            TradesMatchResponse response = expectMsgClass(TradesMatchResponse.class);
 
-                TradesMatchResponse response = expectMsgClass(TradesMatchResponse.class);
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
+                    Map<String, TradeOutput<Trade>> matchedTradesMap = response.getMatchedTradesMap();
+                    Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = response.getMatchedCcpTradesMap();
 
-                new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
-                    protected void run() {
-                        Map<String, TradeOutput<Trade>> matchedTradesMap = response.getMatchedTradesMap();
-                        Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = response.getMatchedCcpTradesMap();
-
-                        assertEquals(1, matchedTradesMap.size());
-                        assertEquals(trade.getExchangeReference(), matchedTradesMap.keySet().iterator().next());
-                        assertEquals(1, matchedCcpTradesMap.size());
-                        assertEquals(ccpTrade.getExchangeReference(), matchedCcpTradesMap.keySet().iterator().next());
-                        logUsedMemory();
-                    }
-                };
+                    assertEquals(1, matchedTradesMap.size());
+                    assertEquals(trade.getExchangeReference(), matchedTradesMap.keySet().iterator().next());
+                    assertEquals(1, matchedCcpTradesMap.size());
+                    assertEquals(ccpTrade.getExchangeReference(), matchedCcpTradesMap.keySet().iterator().next());
+                    logUsedMemory();
+                }
             };
 
-            system.scheduler().scheduleOnce(Duration.create(RESULTS_DELAY_MS, TimeUnit.MILLISECONDS), task, system.dispatcher());
         }};
     }
 
@@ -215,27 +205,23 @@ public class TradesTest {
 
             supervisor.tell(new NewTradeMessage(trade), getTestActor());
             supervisor.tell(new NewCcpTradeMessage(ccpTrade), getTestActor());
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesMatchRequest(), getTestActor());
 
-            Runnable task = () -> {
-                supervisor.tell(new TradesMatchRequest(), getTestActor());
+            TradesMatchResponse response = expectMsgClass(TradesMatchResponse.class);
 
-                TradesMatchResponse response = expectMsgClass(TradesMatchResponse.class);
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
+                    Map<String, TradeOutput<Trade>> unmatchedTradesMap = response.getUnmatchedTradesMap();
+                    Map<String, TradeOutput<CcpTrade>> unmatchedCcpTradesMap = response.getUnmatchedCcpTradesMap();
 
-                new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
-                    protected void run() {
-                        Map<String, TradeOutput<Trade>> unmatchedTradesMap = response.getUnmatchedTradesMap();
-                        Map<String, TradeOutput<CcpTrade>> unmatchedCcpTradesMap = response.getUnmatchedCcpTradesMap();
-
-                        assertEquals(1, unmatchedTradesMap.size());
-                        assertEquals(trade.getExchangeReference(), unmatchedTradesMap.keySet().iterator().next());
-                        assertEquals(1, unmatchedCcpTradesMap.size());
-                        assertEquals(ccpTrade.getExchangeReference(), unmatchedCcpTradesMap.keySet().iterator().next());
-                        logUsedMemory();
-                    }
-                };
+                    assertEquals(1, unmatchedTradesMap.size());
+                    assertEquals(trade.getExchangeReference(), unmatchedTradesMap.keySet().iterator().next());
+                    assertEquals(1, unmatchedCcpTradesMap.size());
+                    assertEquals(ccpTrade.getExchangeReference(), unmatchedCcpTradesMap.keySet().iterator().next());
+                    logUsedMemory();
+                }
             };
-
-            system.scheduler().scheduleOnce(Duration.create(RESULTS_DELAY_MS, TimeUnit.MILLISECONDS), task, system.dispatcher());
         }};
     }
 
@@ -284,38 +270,35 @@ public class TradesTest {
             Long diffLoad = endLoadTimestamp - startLoadTimestamp;
             log.debug("Trades loading duration (ms): " + diffLoad);
 
+            Utils.delayExec(RESULTS_DELAY_MS);
 
-            // match trades and ccp trades
-            Runnable task = () -> {
-                Long startMatchTimestamp = System.currentTimeMillis();
-                supervisor.tell(new TradesMatchRequest(), getTestActor());
+            Long startMatchTimestamp = System.currentTimeMillis();
+            supervisor.tell(new TradesMatchRequest(), getTestActor());
 
-                TradesMatchResponse response = expectMsgClass(new FiniteDuration(20, TimeUnit.SECONDS) ,TradesMatchResponse.class);
+            TradesMatchResponse response = expectMsgClass(new FiniteDuration(20, TimeUnit.SECONDS) ,TradesMatchResponse.class);
 
-                new Within(new FiniteDuration(20, TimeUnit.SECONDS)) {
-                    protected void run() {
-                        Long endMatchTimestamp = System.currentTimeMillis();
-                        Long diffMatch = endMatchTimestamp - startMatchTimestamp;
+            new Within(new FiniteDuration(20, TimeUnit.SECONDS)) {
+                protected void run() {
+                    Long endMatchTimestamp = System.currentTimeMillis();
+                    Long diffMatch = endMatchTimestamp - startMatchTimestamp;
 
-                        Map<String, TradeOutput<Trade>> matchedTradesMap = response.getMatchedTradesMap();
-                        Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = response.getMatchedCcpTradesMap();
-                        Map<String, TradeOutput<Trade>> unmatchedTradesMap = response.getUnmatchedTradesMap();
-                        Map<String, TradeOutput<CcpTrade>> unmatchedCcpTradesMap = response.getUnmatchedCcpTradesMap();
+                    Map<String, TradeOutput<Trade>> matchedTradesMap = response.getMatchedTradesMap();
+                    Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = response.getMatchedCcpTradesMap();
+                    Map<String, TradeOutput<Trade>> unmatchedTradesMap = response.getUnmatchedTradesMap();
+                    Map<String, TradeOutput<CcpTrade>> unmatchedCcpTradesMap = response.getUnmatchedCcpTradesMap();
 
-                        log.debug("Trades matching duration (ms): " + diffMatch);
-                        log.debug("Matched trades : {}, Matched CCP trades: {}", matchedTradesMap.size(), matchedCcpTradesMap.size());
-                        log.debug("Unmatched trades : {}, Unmatched CCP trades: {}", unmatchedTradesMap.size(), unmatchedCcpTradesMap.size());
-                        logUsedMemory();
+                    log.debug("Trades matching duration (ms): " + diffMatch);
+                    log.debug("Matched trades : {}, Matched CCP trades: {}", matchedTradesMap.size(), matchedCcpTradesMap.size());
+                    log.debug("Unmatched trades : {}, Unmatched CCP trades: {}", unmatchedTradesMap.size(), unmatchedCcpTradesMap.size());
+                    logUsedMemory();
 
-                        assertEquals(10000, matchedTradesMap.size());
-                        assertEquals(10000, matchedCcpTradesMap.size());
-                        assertEquals(20000, unmatchedTradesMap.size());
-                        assertEquals(20000, unmatchedCcpTradesMap.size());
-                    }
-                };
+                    assertEquals(0, matchedTradesMap.size());
+                    assertEquals(0, matchedCcpTradesMap.size());
+                    assertEquals(30000, unmatchedTradesMap.size());
+                    assertEquals(30000, unmatchedCcpTradesMap.size());
+                }
             };
 
-            system.scheduler().scheduleOnce(Duration.create(RESULTS_DELAY_MS, TimeUnit.MILLISECONDS), task, system.dispatcher());
         }};
     }
 
