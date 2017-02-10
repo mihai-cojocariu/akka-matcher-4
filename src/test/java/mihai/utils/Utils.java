@@ -6,6 +6,12 @@ import mihai.dto.Trade;
 import mihai.messages.NewCcpTradeMessage;
 import mihai.messages.NewTradeMessage;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
 /**
  * Created by mcojocariu on 2/2/2017.
  */
@@ -82,9 +88,9 @@ public class Utils {
 //        }
 //    }
 //
-//    public static ZonedDateTime getZonedDateTime(String dateString) {
-//        DateTimeFormatter dtf = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT, Locale.ENGLISH);
-//        LocalDate date = LocalDate.parse(dateString, dtf);
-//        return date.atStartOfDay(ZoneId.of(Constants.UTC_TIMEZONE));
-//    }
+    public static ZonedDateTime getZonedDateTime(String dateString) {
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT, Locale.ENGLISH);
+        LocalDate date = LocalDate.parse(dateString, dtf);
+        return date.atStartOfDay(ZoneId.of(Constants.UTC_TIMEZONE));
+    }
 }
