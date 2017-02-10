@@ -11,17 +11,17 @@ import mihai.messages.NewTradeMessage;
  */
 public class Utils {
     public static void loadRandomTrades(ActorRef supervisor, ActorRef testActor, Integer numberOfTrades) {
-        Integer tradeExchangeReference = 0;
-        Integer ccpTradeExchangeReference = 0;
-
         for(int i=1; i<=numberOfTrades; i++) {
-            tradeExchangeReference += 2;
-            Trade trade = Trade.aTrade(tradeExchangeReference.toString());
+            Trade trade = Trade.aTrade();
             NewTradeMessage newTradeMessage = new NewTradeMessage(trade);
             supervisor.tell(newTradeMessage, testActor);
 
-            ccpTradeExchangeReference += 3;
-            CcpTrade ccpTrade = CcpTrade.aCcpTrade(ccpTradeExchangeReference.toString());
+            CcpTrade ccpTrade;
+            if (i % 3 == 0) {
+                ccpTrade = CcpTrade.aCcpTrade(trade);
+            } else {
+                ccpTrade = CcpTrade.aCcpTrade();
+            }
             NewCcpTradeMessage newCcpTradeMessage = new NewCcpTradeMessage(ccpTrade);
             supervisor.tell(newCcpTradeMessage, testActor);
         }
