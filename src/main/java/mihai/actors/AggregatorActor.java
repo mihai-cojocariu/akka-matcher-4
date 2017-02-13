@@ -9,6 +9,7 @@ import mihai.messages.TradesListsRequest;
 import mihai.messages.TradesListsResponse;
 import mihai.messages.TradesMatchRequest;
 import mihai.messages.TradesMatchResponse;
+import mihai.utils.TradeComment;
 import mihai.utils.TradeState;
 
 import java.util.HashMap;
@@ -47,38 +48,55 @@ public class AggregatorActor extends UntypedActor {
     }
 
     private void processAggregatorMessage(AggregatorMessage aggregatorMessage) {
-        for (AggregatorMessage.Operation operation : aggregatorMessage.getTradesOperations()) {
-            Trade trade = (Trade) operation.getTrade();
+        for (Object operation : aggregatorMessage.getTradesOperations()) {
+            Trade trade = null;
+            CcpTrade ccpTrade = null;
+            TradeComment tradeComment = null;
+            TradeState tradeState = null;
+            AggregatorMessage.OperationType operationType = null;
 
-            if (TradeState.MATCH.equals(operation.getTradeState())) {
-                if (AggregatorMessage.OperationType.ADD.equals(operation.getOperationType())) {
-                    matchedTradesMap.put(trade.getExchangeReference(), new TradeOutput<>(trade, operation.getTradeComment().getComment()));
-                } else {
-                    matchedTradesMap.remove(trade.getExchangeReference());
-                }
-            } else {
-                if (AggregatorMessage.OperationType.ADD.equals(operation.getOperationType())) {
-                    unmatchedTradesMap.put(trade.getExchangeReference(), new TradeOutput<>(trade, operation.getTradeComment().getComment()));
-                } else {
-                    unmatchedTradesMap.remove(trade.getExchangeReference());
-                }
+            try {
+                AggregatorMessage.Operation<Trade> tradeOperation = (AggregatorMessage.Operation<Trade>) operation;
+                trade = tradeOperation.getTrade();
+                tradeComment = tradeOperation.getTradeComment();
+                tradeState = tradeOperation.getTradeState();
+                operationType = tradeOperation.getOperationType();
+            } catch (ClassCastException ex) {
+                AggregatorMessage.Operation<CcpTrade> tradeOperation = (AggregatorMessage.Operation<CcpTrade>) operation;
+                ccpTrade = tradeOperation.getTrade();
+                tradeComment = tradeOperation.getTradeComment();
+                tradeState = tradeOperation.getTradeState();
+                operationType = tradeOperation.getOperationType();
             }
-        }
 
-        for (AggregatorMessage.Operation operation : aggregatorMessage.getCcpTradesOperations()) {
-            CcpTrade ccpTrade = (CcpTrade) operation.getTrade();
 
-            if (TradeState.MATCH.equals(operation.getTradeState())) {
-                if (AggregatorMessage.OperationType.ADD.equals(operation.getOperationType())) {
-                    matchedCcpTradesMap.put(ccpTrade.getExchangeReference(), new TradeOutput<>(ccpTrade, operation.getTradeComment().getComment()));
+            if (TradeState.MATCH.equals(tradeState)) {
+                if (AggregatorMessage.OperationType.ADD.equals(operationType)) {
+                    if (trade != null) {
+                        matchedTradesMap.put(trade.getExchangeReference(), new TradeOutput<>(trade, tradeComment.getComment()));
+                    } else {
+                        matchedCcpTradesMap.put(ccpTrade.getExchangeReference(), new TradeOutput<>(ccpTrade, tradeComment.getComment()));
+                    }
                 } else {
-                    matchedCcpTradesMap.remove(ccpTrade.getExchangeReference());
+                    if (trade != null) {
+                        matchedTradesMap.remove(trade.getExchangeReference());
+                    } else {
+                        matchedCcpTradesMap.remove(ccpTrade.getExchangeReference());
+                    }
                 }
             } else {
-                if (AggregatorMessage.OperationType.ADD.equals(operation.getOperationType())) {
-                    unmatchedCcpTradesMap.put(ccpTrade.getExchangeReference(), new TradeOutput<>(ccpTrade, operation.getTradeComment().getComment()));
+                if (AggregatorMessage.OperationType.ADD.equals(operationType)) {
+                    if (trade != null) {
+                        unmatchedTradesMap.put(trade.getExchangeReference(), new TradeOutput<>(trade, tradeComment.getComment()));
+                    } else {
+                        unmatchedCcpTradesMap.put(ccpTrade.getExchangeReference(), new TradeOutput<>(ccpTrade, tradeComment.getComment()));
+                    }
                 } else {
-                    unmatchedCcpTradesMap.remove(ccpTrade.getExchangeReference());
+                    if (trade != null) {
+                        unmatchedTradesMap.remove(trade.getExchangeReference());
+                    } else {
+                        unmatchedCcpTradesMap.remove(ccpTrade.getExchangeReference());
+                    }
                 }
             }
         }

@@ -1,33 +1,30 @@
 package mihai.messages;
 
-import mihai.dto.CcpTrade;
-import mihai.dto.Trade;
 import mihai.utils.TradeComment;
 import mihai.utils.TradeState;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Created by mcojocariu on 2/8/2017.
  */
-public class AggregatorMessage implements Serializable {
-    List<Operation<Trade>> tradesOperations;
-    List<Operation<CcpTrade>> ccpTradesOperations;
+public class AggregatorMessage<T> implements Serializable {
+    private List<Operation<T>> tradesOperations = new ArrayList<>();
 
-    public AggregatorMessage(List<Operation<Trade>> tradesOperations, List<Operation<CcpTrade>> ccpTradesOperations) {
-        this.tradesOperations = tradesOperations;
-        this.ccpTradesOperations = ccpTradesOperations;
+    public AggregatorMessage() {
     }
 
-    public List<Operation<Trade>> getTradesOperations() {
+
+    public List<Operation<T>> getTradesOperations() {
         return tradesOperations;
     }
 
-
-    public List<Operation<CcpTrade>> getCcpTradesOperations() {
-        return ccpTradesOperations;
+    public void addTradesOperation(Operation<T> tradesOperation) {
+        this.tradesOperations.add(tradesOperation);
     }
+
 
     public enum OperationType implements Serializable {
         ADD,
@@ -35,16 +32,16 @@ public class AggregatorMessage implements Serializable {
     }
 
     public static class Operation<T> implements Serializable {
-        T trade;
-        TradeState tradeState;
-        OperationType operationType;
-        TradeComment tradeComment;
+        private T trade;
+        private TradeState tradeState;
+        private OperationType operationType;
+        private TradeComment tradeComment;
 
-        public Operation(T trade, TradeState tradeState, OperationType operationType, TradeComment tradeComment) {
-            this.trade = trade;
-            this.tradeState = tradeState;
-            this.operationType = operationType;
-            this.tradeComment = tradeComment;
+        private Operation(Builder<T> builder) {
+            this.trade = builder.trade;
+            this.tradeState = builder.tradeState;
+            this.operationType = builder.operationType;
+            this.tradeComment = builder.tradeComment;
         }
 
         public T getTrade() {
@@ -62,5 +59,40 @@ public class AggregatorMessage implements Serializable {
         public TradeComment getTradeComment() {
             return tradeComment;
         }
+
+        public static class Builder<T> {
+            private T trade;
+            private TradeState tradeState;
+            private OperationType operationType;
+            private TradeComment tradeComment;
+
+            public Builder() {
+            }
+
+            public Builder withTrade(T trade) {
+                this.trade = trade;
+                return this;
+            }
+
+            public Builder withTradeState(TradeState tradeState) {
+                this.tradeState = tradeState;
+                return this;
+            }
+
+            public Builder withOperationType(OperationType operationType) {
+                this.operationType = operationType;
+                return this;
+            }
+
+            public Builder withTradeComment(TradeComment tradeComment) {
+                this.tradeComment = tradeComment;
+                return this;
+            }
+
+            public Operation build() {
+                return new Operation(this);
+            }
+        }
     }
+
 }

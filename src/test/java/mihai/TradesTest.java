@@ -21,10 +21,12 @@ import mihai.messages.TradesListsResponse;
 import mihai.messages.TradesMatchRequest;
 import mihai.messages.TradesMatchResponse;
 import mihai.utils.Constants;
+import mihai.utils.TradeComment;
 import mihai.utils.Utils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
@@ -316,6 +318,83 @@ public class TradesTest {
                 }
             };
 
+        }};
+    }
+
+    @Test
+    public void matchingTest() {
+        new JavaTestKit(system) {{
+            log.debug("Starting matchingTest()...");
+
+            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
+
+            Utils.loadTrades(supervisor, getTestActor());
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesMatchRequest(), getTestActor());
+
+            TradesMatchResponse response = expectMsgClass(new FiniteDuration(20, TimeUnit.SECONDS) ,TradesMatchResponse.class);
+
+            new Within(new FiniteDuration(20, TimeUnit.SECONDS)) {
+                protected void run() {
+                    Map<String, TradeOutput<Trade>> matchedTradesMap = response.getMatchedTradesMap();
+                    Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = response.getMatchedCcpTradesMap();
+                    Map<String, TradeOutput<Trade>> unmatchedTradesMap = response.getUnmatchedTradesMap();
+                    Map<String, TradeOutput<CcpTrade>> unmatchedCcpTradesMap = response.getUnmatchedCcpTradesMap();
+
+                    logUsedMemory();
+
+                    assertEquals(2, matchedTradesMap.size());
+                    assertEquals(2, matchedCcpTradesMap.size());
+                    assertEquals(3, unmatchedTradesMap.size());
+                    assertEquals(3, unmatchedCcpTradesMap.size());
+
+                    for (TradeOutput<Trade> tradeOutput : matchedTradesMap.values()) {
+                        Trade trade = tradeOutput.getTrade();
+                        if (trade.getExchangeReference().equals("EX100")) {
+                            assertEquals(TradeComment.FULL_MATCH.getComment(), tradeOutput.getComment());
+                        }
+                        if (trade.getExchangeReference().equals("EX102")) {
+                            assertEquals(TradeComment.MATCH_WITHIN_TOLERANCE_FOR_AMOUNT.getComment(), tradeOutput.getComment());
+                        }
+                    }
+
+                    for (TradeOutput<Trade> tradeOutput : unmatchedTradesMap.values()) {
+                        Trade trade = tradeOutput.getTrade();
+                        if (trade.getExchangeReference().equals("EX101")) {
+                            assertEquals(TradeComment.UNMATCH_ECONOMICS_MISMATCH.getComment(), tradeOutput.getComment());
+                        }
+                        if (trade.getExchangeReference().equals("EX103")) {
+                            assertEquals(TradeComment.UNMATCH_OUTSIDE_OF_TOLERANCE_FOR_AMOUNT.getComment(), tradeOutput.getComment());
+                        }
+                        if (trade.getExchangeReference().equals("EX104")) {
+                            assertEquals(TradeComment.CCP_TRADE_UNMATCH.getComment(), tradeOutput.getComment());
+                        }
+                    }
+
+                    for (TradeOutput<CcpTrade> tradeOutput : matchedCcpTradesMap.values()) {
+                        CcpTrade ccpTrade = tradeOutput.getTrade();
+                        if (ccpTrade.getExchangeReference().equals("EX100")) {
+                            assertEquals(TradeComment.FULL_MATCH.getComment(), tradeOutput.getComment());
+                        }
+                        if (ccpTrade.getExchangeReference().equals("EX102")) {
+                            assertEquals(TradeComment.MATCH_WITHIN_TOLERANCE_FOR_AMOUNT.getComment(), tradeOutput.getComment());
+                        }
+                    }
+
+                    for (TradeOutput<CcpTrade> tradeOutput : matchedCcpTradesMap.values()) {
+                        CcpTrade ccpTrade = tradeOutput.getTrade();
+                        if (ccpTrade.getExchangeReference().equals("EX101")) {
+                            assertEquals(TradeComment.UNMATCH_ECONOMICS_MISMATCH.getComment(), tradeOutput.getComment());
+                        }
+                        if (ccpTrade.getExchangeReference().equals("EX103")) {
+                            assertEquals(TradeComment.UNMATCH_OUTSIDE_OF_TOLERANCE_FOR_AMOUNT.getComment(), tradeOutput.getComment());
+                        }
+                        if (ccpTrade.getExchangeReference().equals("EX104")) {
+                            assertEquals(TradeComment.TRADE_UNMATCH.getComment(), tradeOutput.getComment());
+                        }
+                    }
+                }
+            };
         }};
     }
 

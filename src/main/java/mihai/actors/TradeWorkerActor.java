@@ -13,9 +13,7 @@ import mihai.utils.TradeComment;
 import mihai.utils.TradeState;
 import mihai.utils.TradeUtils;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,9 +23,12 @@ public class TradeWorkerActor extends UntypedActor {
     ActorRef aggregatorActor;
     Map<String, Trade> tradeMap = new HashMap<>();
     Map<String, CcpTrade> ccpTradeMap = new HashMap<>();
-
-    List<AggregatorMessage.Operation<Trade>> tradesOperations;
-    List<AggregatorMessage.Operation<CcpTrade>> ccpTradesOperations;
+    private enum MessageType {
+        NEW_MATCHED_TRADE,
+        NEW_UNMATCHED_TRADE,
+        CANCEL_MATCHED_TRADE,
+        CANCEL_UNMATCHED_TRADE
+    }
 
     public TradeWorkerActor(ActorRef aggregatorActor) {
         this.aggregatorActor = aggregatorActor;
@@ -35,52 +36,62 @@ public class TradeWorkerActor extends UntypedActor {
 
     @Override
     public void onReceive(Object message) throws Throwable {
-        tradesOperations = new ArrayList<>();
-        ccpTradesOperations = new ArrayList<>();
+        AggregatorMessage aggregatorMessage = null;
 
         if (message instanceof NewTradeMessage) {
-            performNewTrade((NewTradeMessage) message);
+            aggregatorMessage = performNewTrade((NewTradeMessage) message);
         } else if (message instanceof NewCcpTradeMessage) {
-            performNewCcpTrade((NewCcpTradeMessage) message);
+            aggregatorMessage = performNewCcpTrade((NewCcpTradeMessage) message);
         } else if (message instanceof CancelTradeMessage) {
-            performCancelTrade((CancelTradeMessage) message);
+            aggregatorMessage = performCancelTrade((CancelTradeMessage) message);
         } else if (message instanceof CancelCcpTradeMessage) {
-            performCancelCcpTrade((CancelCcpTradeMessage) message);
+            aggregatorMessage = performCancelCcpTrade((CancelCcpTradeMessage) message);
         } else {
             unhandled(message);
         }
 
-        AggregatorMessage aggregatorMessage = new AggregatorMessage(tradesOperations, ccpTradesOperations);
-        aggregatorActor.tell(aggregatorMessage, getSelf());
+        if (aggregatorMessage != null) {
+            aggregatorActor.tell(aggregatorMessage, getSelf());
+        }
     }
 
-    private void performCancelCcpTrade(CancelCcpTradeMessage cancelCcpTradeMessage) {
+    private AggregatorMessage performCancelCcpTrade(CancelCcpTradeMessage cancelCcpTradeMessage) {
+        AggregatorMessage aggregatorMessage = new AggregatorMessage();
+
         CcpTrade ccpTrade = cancelCcpTradeMessage.getCcpTrade();
         ccpTradeMap.remove(ccpTrade.getExchangeReference());
 
         Trade trade = tradeMap.get(ccpTrade.getExchangeReference());
 
         if (trade == null) {
-            updateAggregatorOperations(CancelCcpTradeMessage.class, trade, ccpTrade, TradeState.MISMATCH, null);
+            updateAggregatorOperations(MessageType.CANCEL_UNMATCHED_TRADE, aggregatorMessage, ccpTrade, null, null);
         } else {
-            updateAggregatorOperations(CancelCcpTradeMessage.class, trade, ccpTrade, TradeState.MATCH, TradeComment.TRADE_UNMATCH);
+            updateAggregatorOperations(MessageType.CANCEL_MATCHED_TRADE, aggregatorMessage, ccpTrade, trade, TradeComment.TRADE_UNMATCH);
         }
+
+        return aggregatorMessage;
     }
 
-    private void performCancelTrade(CancelTradeMessage cancelTradeMessage) {
+    private AggregatorMessage performCancelTrade(CancelTradeMessage cancelTradeMessage) {
+        AggregatorMessage aggregatorMessage = new AggregatorMessage();
+
         Trade trade = cancelTradeMessage.getTrade();
         tradeMap.remove(trade.getExchangeReference());
 
         CcpTrade ccpTrade = ccpTradeMap.get(trade.getExchangeReference());
 
         if (ccpTrade == null) {
-            updateAggregatorOperations(CancelTradeMessage.class, trade, ccpTrade, TradeState.MISMATCH, null);
+            updateAggregatorOperations(MessageType.CANCEL_UNMATCHED_TRADE, aggregatorMessage, trade, null, null);
         } else {
-            updateAggregatorOperations(CancelTradeMessage.class, trade, ccpTrade, TradeState.MATCH, TradeComment.CCP_TRADE_UNMATCH);
+            updateAggregatorOperations(MessageType.CANCEL_MATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.CCP_TRADE_UNMATCH);
         }
+
+        return aggregatorMessage;
     }
 
-    private void performNewCcpTrade(NewCcpTradeMessage newCcpTradeMessage) {
+    private AggregatorMessage performNewCcpTrade(NewCcpTradeMessage newCcpTradeMessage) {
+        AggregatorMessage aggregatorMessage = new AggregatorMessage();
+
         CcpTrade ccpTrade = newCcpTradeMessage.getCcpTrade();
         ccpTradeMap.put(ccpTrade.getExchangeReference(), ccpTrade);
 
@@ -88,23 +99,27 @@ public class TradeWorkerActor extends UntypedActor {
 
         if (trade == null) {
             // unmatch -> missing trade
-            updateAggregatorOperations(NewCcpTradeMessage.class, trade, ccpTrade, TradeState.MISMATCH, TradeComment.TRADE_UNMATCH);
+            updateAggregatorOperations(MessageType.NEW_UNMATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.TRADE_UNMATCH);
         } else if (TradeUtils.isFullMatch(trade, ccpTrade)) {
             // match -> full match
-            updateAggregatorOperations(NewCcpTradeMessage.class, trade, ccpTrade, TradeState.MATCH, TradeComment.FULL_MATCH);
+            updateAggregatorOperations(MessageType.NEW_MATCHED_TRADE, aggregatorMessage, ccpTrade, trade, TradeComment.FULL_MATCH);
         } else if (TradeUtils.isMatchWithinToleranceForAmount(trade, ccpTrade)) {
             // match -> within tolerance for amount
-            updateAggregatorOperations(NewCcpTradeMessage.class, trade, ccpTrade, TradeState.MATCH, TradeComment.MATCH_WITHIN_TOLERANCE_FOR_AMOUNT);
+            updateAggregatorOperations(MessageType.NEW_MATCHED_TRADE, aggregatorMessage, ccpTrade, trade, TradeComment.MATCH_WITHIN_TOLERANCE_FOR_AMOUNT);
         } else if (TradeUtils.isUnmatchOutsideOfToleranceForAmount(trade, ccpTrade)) {
             // unmatch -> outside tolerance for amount
-            updateAggregatorOperations(NewCcpTradeMessage.class, trade, ccpTrade, TradeState.MISMATCH, TradeComment.UNMATCH_OUTSIDE_OF_TOLERANCE_FOR_AMOUNT);
+            updateAggregatorOperations(MessageType.NEW_UNMATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.UNMATCH_OUTSIDE_OF_TOLERANCE_FOR_AMOUNT);
         } else {
             // unmatch -> economics mismatch
-            updateAggregatorOperations(NewCcpTradeMessage.class, trade, ccpTrade, TradeState.MISMATCH, TradeComment.UNMATCH_ECONOMICS_MISMATCH);
+            updateAggregatorOperations(MessageType.NEW_UNMATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.UNMATCH_ECONOMICS_MISMATCH);
         }
+
+        return aggregatorMessage;
     }
 
-    private void performNewTrade(NewTradeMessage newTradeMessage) {
+    private AggregatorMessage performNewTrade(NewTradeMessage newTradeMessage) {
+        AggregatorMessage aggregatorMessage = new AggregatorMessage();
+
         Trade trade = newTradeMessage.getTrade();
         tradeMap.put(trade.getExchangeReference(), trade);
 
@@ -112,70 +127,92 @@ public class TradeWorkerActor extends UntypedActor {
 
         if (ccpTrade == null) {
             // unmatch -> missing CCP
-            updateAggregatorOperations(NewTradeMessage.class, trade, ccpTrade, TradeState.MISMATCH, TradeComment.CCP_TRADE_UNMATCH);
+            updateAggregatorOperations(MessageType.NEW_UNMATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.CCP_TRADE_UNMATCH);
         } else if (TradeUtils.isFullMatch(trade, ccpTrade)) {
             // match -> full match
-            updateAggregatorOperations(NewTradeMessage.class, trade, ccpTrade, TradeState.MATCH, TradeComment.FULL_MATCH);
+            updateAggregatorOperations(MessageType.NEW_MATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.FULL_MATCH);
         } else if (TradeUtils.isMatchWithinToleranceForAmount(trade, ccpTrade)) {
             // match -> within tolerance for amount
-            updateAggregatorOperations(NewTradeMessage.class, trade, ccpTrade, TradeState.MATCH, TradeComment.MATCH_WITHIN_TOLERANCE_FOR_AMOUNT);
+            updateAggregatorOperations(MessageType.NEW_MATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.MATCH_WITHIN_TOLERANCE_FOR_AMOUNT);
         } else if (TradeUtils.isUnmatchOutsideOfToleranceForAmount(trade, ccpTrade)) {
             // unmatch -> outside tolerance for amount
-            updateAggregatorOperations(NewTradeMessage.class, trade, ccpTrade, TradeState.MISMATCH, TradeComment.UNMATCH_OUTSIDE_OF_TOLERANCE_FOR_AMOUNT);
+            updateAggregatorOperations(MessageType.NEW_UNMATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.UNMATCH_OUTSIDE_OF_TOLERANCE_FOR_AMOUNT);
         } else {
             // unmatch -> economics mismatch
-            updateAggregatorOperations(NewTradeMessage.class, trade, ccpTrade, TradeState.MISMATCH, TradeComment.UNMATCH_ECONOMICS_MISMATCH);
+            updateAggregatorOperations(MessageType.NEW_UNMATCHED_TRADE, aggregatorMessage, trade, ccpTrade, TradeComment.UNMATCH_ECONOMICS_MISMATCH);
         }
+
+        return aggregatorMessage;
     }
 
-    private void updateAggregatorOperations(Class messageClass, Trade trade, CcpTrade ccpTrade, TradeState tradeState, TradeComment tradeComment) {
-        if (NewTradeMessage.class.equals(messageClass) || NewCcpTradeMessage.class.equals(messageClass)) {
-            // new trades / CCP trades
-            if (TradeState.MATCH.equals(tradeState)) {
-                // trades match
-                if (NewTradeMessage.class.equals(messageClass)) {
-                    // new trade added which is matched with an existing CCP trade
-                    tradesOperations.add(new AggregatorMessage.Operation<>(trade, TradeState.MATCH, AggregatorMessage.OperationType.ADD, tradeComment));
-                    ccpTradesOperations.add(new AggregatorMessage.Operation<>(ccpTrade, TradeState.MISMATCH, AggregatorMessage.OperationType.REMOVE, null));
-                    ccpTradesOperations.add(new AggregatorMessage.Operation<>(ccpTrade, TradeState.MATCH, AggregatorMessage.OperationType.ADD, tradeComment));
-                } else {
-                    // new CCP trade is added which is matched with an existing trade
-                    ccpTradesOperations.add(new AggregatorMessage.Operation<>(ccpTrade, TradeState.MATCH, AggregatorMessage.OperationType.ADD, tradeComment));
-                    tradesOperations.add(new AggregatorMessage.Operation<>(trade, TradeState.MISMATCH, AggregatorMessage.OperationType.REMOVE, null));
-                    tradesOperations.add(new AggregatorMessage.Operation<>(trade, TradeState.MATCH, AggregatorMessage.OperationType.ADD, tradeComment));
-                }
-            } else {
-                // trades mismatch
-                if (trade != null) {
-                    tradesOperations.add(new AggregatorMessage.Operation<>(trade, TradeState.MISMATCH, AggregatorMessage.OperationType.ADD, tradeComment));
-                }
-                if (ccpTrade != null) {
-                    ccpTradesOperations.add(new AggregatorMessage.Operation<>(ccpTrade, TradeState.MISMATCH, AggregatorMessage.OperationType.ADD, tradeComment));
-                }
-            }
-        } else {
-            // cancelling trades / CCP trades
-            if (TradeState.MATCH.equals(tradeState)) {
-                // cancel trades / CCP trades which have a matching CCP trade / trade
-                if (CancelTradeMessage.class.equals(messageClass)) {
-                    tradesOperations.add(new AggregatorMessage.Operation<>(trade, TradeState.MATCH, AggregatorMessage.OperationType.REMOVE, null));
-                    ccpTradesOperations.add(new AggregatorMessage.Operation<>(ccpTrade, TradeState.MATCH, AggregatorMessage.OperationType.REMOVE, null));
-                    ccpTradesOperations.add(new AggregatorMessage.Operation<>(ccpTrade, TradeState.MISMATCH, AggregatorMessage.OperationType.ADD, tradeComment));
-                } else {
-                    ccpTradesOperations.add(new AggregatorMessage.Operation<>(ccpTrade, TradeState.MATCH, AggregatorMessage.OperationType.REMOVE, null));
-                    tradesOperations.add(new AggregatorMessage.Operation<>(trade, TradeState.MATCH, AggregatorMessage.OperationType.REMOVE, null));
-                    tradesOperations.add(new AggregatorMessage.Operation<>(trade, TradeState.MISMATCH, AggregatorMessage.OperationType.ADD, tradeComment));
-                }
-            } else {
-                // cancel trades / CCP trades without a matching CCP trade / trade
-                if (CancelTradeMessage.class.equals(messageClass)) {
-                    tradesOperations.add(new AggregatorMessage.Operation<>(trade, TradeState.MISMATCH, AggregatorMessage.OperationType.REMOVE, null));
-                } else {
-                    ccpTradesOperations.add(new AggregatorMessage.Operation<>(ccpTrade, TradeState.MISMATCH, AggregatorMessage.OperationType.REMOVE, null));
-                }
-            }
+    private <T, V> void updateAggregatorOperations(MessageType messageType, AggregatorMessage aggregatorMessage, T trade1, V trade2, TradeComment tradeComment) {
+        switch (messageType) {
 
+            case NEW_MATCHED_TRADE:
+                aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                        .withTrade(trade1)
+                        .withTradeState(TradeState.MATCH)
+                        .withOperationType(AggregatorMessage.OperationType.ADD)
+                        .withTradeComment(tradeComment)
+                        .build());
+                aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                        .withTrade(trade2)
+                        .withTradeState(TradeState.MISMATCH)
+                        .withOperationType(AggregatorMessage.OperationType.REMOVE)
+                        .build());
+                aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                        .withTrade(trade2)
+                        .withTradeState(TradeState.MATCH)
+                        .withOperationType(AggregatorMessage.OperationType.ADD)
+                        .withTradeComment(tradeComment)
+                        .build());
+                break;
+
+            case NEW_UNMATCHED_TRADE:
+                if (trade1 != null) {
+                    aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                            .withTrade(trade1)
+                            .withTradeState(TradeState.MISMATCH)
+                            .withOperationType(AggregatorMessage.OperationType.ADD)
+                            .withTradeComment(tradeComment)
+                            .build());
+                }
+                if (trade2 != null) {
+                    aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                            .withTrade(trade2)
+                            .withTradeState(TradeState.MISMATCH)
+                            .withOperationType(AggregatorMessage.OperationType.ADD)
+                            .withTradeComment(tradeComment)
+                            .build());
+                }
+                break;
+
+            case CANCEL_MATCHED_TRADE:
+                aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                        .withTrade(trade1)
+                        .withTradeState(TradeState.MATCH)
+                        .withOperationType(AggregatorMessage.OperationType.REMOVE)
+                        .build());
+                aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                        .withTrade(trade2)
+                        .withTradeState(TradeState.MATCH)
+                        .withOperationType(AggregatorMessage.OperationType.REMOVE)
+                        .build());
+                aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                        .withTrade(trade2)
+                        .withTradeState(TradeState.MISMATCH)
+                        .withOperationType(AggregatorMessage.OperationType.ADD)
+                        .withTradeComment(tradeComment)
+                        .build());
+                break;
+
+            case CANCEL_UNMATCHED_TRADE:
+                aggregatorMessage.addTradesOperation(new AggregatorMessage.Operation.Builder()
+                        .withTrade(trade1)
+                        .withTradeState(TradeState.MISMATCH)
+                        .withOperationType(AggregatorMessage.OperationType.REMOVE)
+                        .build());
+                break;
         }
-
     }
 }
