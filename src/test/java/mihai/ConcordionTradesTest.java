@@ -1,7 +1,7 @@
 package mihai;
 
 /**
- * Created by mcojocariu on 1/31/2017.
+ * Created by clamba on 1/31/2017.
  */
 
 import akka.actor.ActorSelection;
@@ -18,38 +18,219 @@ import mihai.messages.*;
 import mihai.utils.Constants;
 import mihai.utils.TradeDirection;
 import mihai.utils.Utils;
+import org.concordion.api.AfterExample;
+import org.concordion.api.Scope;
 import org.concordion.api.extension.Extensions;
-import org.concordion.ext.excel.ExcelExtension;
+import org.concordion.api.ConcordionScoped;
+import org.concordion.api.option.ConcordionOptions;
+import org.concordion.api.option.MarkdownExtensions;
+import org.concordion.ext.timing.TimerExtension;
 import org.concordion.integration.junit4.ConcordionRunner;
 import org.concordion.logback.LogbackAdaptor;
+import org.concordion.logback.filter.MarkerFilter;
 import org.concordion.slf4j.ext.ReportLogger;
 import org.concordion.slf4j.ext.ReportLoggerFactory;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.helpers.MarkerIgnoringBase;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.text.ParseException;
-import java.util.Arrays;
+import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 @RunWith(ConcordionRunner.class)
-//@Extensions(value = TimerExtension.class)
-@Extensions(ExcelExtension.class)
+@Extensions(value = TimerExtension.class)
+@ConcordionOptions(copySourceHtmlToDir="C:/tmp")
 //@FailFast
 public class ConcordionTradesTest {
     private static ActorSystem system;
     private final static int RESULTS_DELAY_MS = 50;
     private final ReportLogger logger = ReportLoggerFactory.getReportLogger(this.getClass().getName());
     private final Logger tooltipLogger = LoggerFactory.getLogger("TOOLTIP_" + this.getClass().getName());
+    String tradeReference;
+    String exchangeReference;
+    ZonedDateTime tradeDate;
+    String isin;
+    TradeDirection tradeDirection;
+    Integer tradeQuantity;
+    String tradeCurrency;
+    Float tradeAmount;
+
+    String exchangeReferenceCcp;
+    ZonedDateTime tradeDateCcp;
+    String isinCcp;
+    TradeDirection tradeDirectionCcp;
+    Integer tradeQuantityCcp;
+    String tradeCurrencyCcp;
+    Float tradeAmountCcp;
+
 
     public ConcordionTradesTest() {
+        this.tradeReference = tradeReference;
+        this.exchangeReference = exchangeReference;
+        this.tradeDate = tradeDate;
+        this.isin = isin;
+        this.tradeDirection = tradeDirection;
+        this.tradeQuantity = tradeQuantity;
+        this.tradeCurrency = tradeCurrency;
+        this.tradeAmount = tradeAmount;
 
+        this.exchangeReferenceCcp = exchangeReferenceCcp;
+        this.tradeDateCcp = tradeDateCcp;
+        this.isinCcp = isinCcp;
+        this.tradeDirectionCcp = tradeDirectionCcp;
+        this.tradeQuantityCcp = tradeQuantityCcp;
+        this.tradeCurrencyCcp = tradeCurrencyCcp;
+        this.tradeAmountCcp = tradeAmountCcp;
+    }
+    public String getTradeReference() {
+        return tradeReference;
+    }
+
+    public void setTradeReference(String tradeReference) {
+        this.tradeReference = tradeReference;
+    }
+
+    public String getExchangeReference() {
+        return exchangeReference;
+    }
+
+    public void setExchangeReference(String exchangeReference) {
+        this.exchangeReference = exchangeReference;
+    }
+
+    public ZonedDateTime getTradeDate() {
+        return tradeDate;
+    }
+
+    public void setTradeDate(ZonedDateTime tradeDate) {
+        this.tradeDate = tradeDate;
+    }
+
+    public String getIsin() {
+        return isin;
+    }
+
+    public void setIsin(String isin) {
+        this.isin = isin;
+    }
+
+    public TradeDirection getTradeDirection() {
+        return tradeDirection;
+    }
+
+    public void setTradeDirection(TradeDirection tradeDirection) {
+        this.tradeDirection = tradeDirection;
+    }
+
+    public Integer getTradeQuantity() {
+        return tradeQuantity;
+    }
+
+    public void setTradeQuantity(Integer tradeQuantity) {
+        this.tradeQuantity = tradeQuantity;
+    }
+
+    public String getTradeCurrency() {
+        return tradeCurrency;
+    }
+
+    public void setTradeCurrency(String tradeCurrency) {
+        this.tradeCurrency = tradeCurrency;
+    }
+
+    public Float getTradeAmount() {
+        return tradeAmount;
+    }
+
+    public void setTradeAmount(Float tradeAmount) {
+        this.tradeAmount = tradeAmount;
+    }
+
+    public String getExchangeReferenceCcp() {
+        return exchangeReferenceCcp;
+    }
+
+    public void setExchangeReferenceCcp(String exchangeReferenceCcp) {
+        this.exchangeReferenceCcp = exchangeReferenceCcp;
+    }
+
+    public ZonedDateTime getTradeDateCcp() {
+        return tradeDateCcp;
+    }
+
+    public void setTradeDateCcp(ZonedDateTime tradeDateCcp) {
+        this.tradeDateCcp = tradeDateCcp;
+    }
+
+    public String getIsinCcp() {
+        return isinCcp;
+    }
+
+    public void setIsinCcp(String isinCcp) {
+        this.isinCcp = isinCcp;
+    }
+
+    public TradeDirection getTradeDirectionCcp() {
+        return tradeDirectionCcp;
+    }
+
+    public void setTradeDirectionCcp(TradeDirection tradeDirectionCcp) {
+        this.tradeDirectionCcp = tradeDirectionCcp;
+    }
+
+    public Integer getTradeQuantityCcp() {
+        return tradeQuantityCcp;
+    }
+
+    public void setTradeQuantityCcp(Integer tradeQuantityCcp) {
+        this.tradeQuantityCcp = tradeQuantityCcp;
+    }
+
+    public String getTradeCurrencyCcp() {
+        return tradeCurrencyCcp;
+    }
+
+    public void setTradeCurrencyCcp(String tradeCurrencyCcp) {
+        this.tradeCurrencyCcp = tradeCurrencyCcp;
+    }
+
+    public Float getTradeAmountCcp() {
+        return tradeAmountCcp;
+    }
+
+    public void setTradeAmountCcp(Float tradeAmountCcp) {
+        this.tradeAmountCcp = tradeAmountCcp;
+    }
+
+    public void setTradeData(String tradeReference,String exchangeReference,String tradeDate,String isin,String tradeDirection,String tradeQuantity,String tradeCurrency,String tradeAmount){
+        setTradeReference(tradeReference.trim());
+        setExchangeReference(exchangeReference.trim());
+        setTradeDate(Utils.getZonedDateTime(tradeDate.trim()));
+        setIsin(isin.trim());
+        setTradeDirection(TradeDirection.valueOf(tradeDirection.trim()));
+        setTradeQuantity(Integer.parseInt(tradeQuantity.trim()));
+        setTradeCurrency(tradeCurrency.trim());
+        setTradeAmount(Float.valueOf(tradeAmount.trim()));
+    }
+
+    public void setCcpData(String exchangeReferenceCcp,String tradeDateCcp,String isinCcp,String tradeDirectionCcp,String tradeQuantityCcp,String tradeCurrencyCcp,String tradeAmountCcp){
+        setExchangeReferenceCcp(exchangeReferenceCcp.trim());
+        setTradeDateCcp(Utils.getZonedDateTime(tradeDateCcp.trim()));
+        setIsinCcp(isinCcp.trim());
+        setTradeDirectionCcp(TradeDirection.valueOf(tradeDirectionCcp.trim()));
+        setTradeQuantityCcp(Integer.parseInt(tradeQuantityCcp.trim()));
+        setTradeCurrencyCcp(tradeCurrencyCcp.trim());
+        setTradeAmountCcp(Float.valueOf(tradeAmountCcp.trim()));
     }
 
     static {
@@ -63,6 +244,7 @@ public class ConcordionTradesTest {
     public void addConcordionTooltip(final String message) {
         tooltipLogger.debug(message);
     }
+
     @BeforeClass
     public static void setup() {
         system = ActorSystem.create();
@@ -74,14 +256,13 @@ public class ConcordionTradesTest {
         system.shutdown();
         system.awaitTermination(Duration.create("10 seconds"));
     }
+    @AfterExample
+    private final void afterExample() {
 
-//    @After
-//    public void stopActors() {
-//        new JavaTestKit(system) {{
-//            ActorSelection supervisor = system.actorSelection("/user/" + Constants.SUPERVISOR_CLASS.getSimpleName());
-//            supervisor.tell(PoisonPill.getInstance(), null);
-//        }};
-//    }
+        logger.trace(Marker.ANY_NON_NULL_MARKER);
+
+    }
+
 
     private void stopActors2() {
         new JavaTestKit(system) {{
@@ -98,12 +279,12 @@ public class ConcordionTradesTest {
             final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
             final Trade trade = Trade.aTrade();
             supervisor.tell(new NewTradeMessage(trade), getTestActor());
-            Utils.delayExec(RESULTS_DELAY_MS );
+            Utils.delayExec(RESULTS_DELAY_MS);
             supervisor.tell(new TradesListsRequest(), getTestActor());
 
             TradesListsResponse response = expectMsgClass(TradesListsResponse.class);
-            new Within(new FiniteDuration(10, TimeUnit.SECONDS)){
-                protected void run(){
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
                     canAddATrade.complete(response.getTradeList().size());
                     logger.info("Add a Trade {} on thread {}", this.getClass().getSimpleName(), Thread.currentThread().getName());
                     stopActors2();
@@ -134,8 +315,8 @@ public class ConcordionTradesTest {
 
             TradesListsResponse response = expectMsgClass(TradesListsResponse.class);
 
-            new Within(new FiniteDuration(10,TimeUnit.SECONDS)){
-                protected void run(){
+            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
+                protected void run() {
                     canAddACcpTrade.complete(response.getCcpTradeList().size());
                     logger.info("Add a Ccp Trade {} on thread {}", this.getClass().getSimpleName(), Thread.currentThread().getName());
                     stopActors2();
@@ -153,36 +334,31 @@ public class ConcordionTradesTest {
     }
 
 
-
-    public TradeValues canPerformAMatch(String externalReference, String externalReferenceCCP, String tradeReference,
-                                        String tradeDate, String tradeDateCCP, String is2in, String is2inCCP,
-                                        String direction, String directionCCP,
-                                        String quantity, String quantityCCP, String currency, String currencyCCP,
-                                        String amount, String amountCCP) throws ParseException, ExecutionException, InterruptedException {
+    public TradeValues canPerformAMatch() throws ParseException, ExecutionException, InterruptedException {
 
         CompletableFuture<String> canPerformATradeMAtch = new CompletableFuture<>();
         CompletableFuture<String> canPerformACcpMAtch = new CompletableFuture<>();
+        final byte[] flag = {0};
         new JavaTestKit(system) {
             {
                 logger.info("Perform a Match starting ...");
-
-                final Trade trade = new Trade.TradeBuilder(externalReference)
-                        .withReference(tradeReference)
-                        .withTradeDate(Utils.getZonedDateTime(tradeDate))
-                        .withIsin(is2in)
-                        .withDirection(TradeDirection.valueOf(direction))
-                        .withQuantity(Integer.parseInt(quantity))
-                        .withCurrency(currency)
-                        .withAmount(Float.parseFloat(amount))
+                final Trade trade = new Trade.TradeBuilder(getExchangeReference())
+                        .withReference(getTradeReference())
+                        .withTradeDate(getTradeDate())
+                        .withIsin(getIsin())
+                        .withDirection(getTradeDirection())
+                        .withQuantity(getTradeQuantity())
+                        .withCurrency(getTradeCurrency())
+                        .withAmount(getTradeAmount())
                         .build();
 
-                final CcpTrade ccpTrade = new CcpTrade.CcpTradeBuilder(externalReferenceCCP)
-                        .withTradeDate(Utils.getZonedDateTime(tradeDateCCP))
-                        .withIsin(is2inCCP)
-                        .withDirection(TradeDirection.valueOf(directionCCP))
-                        .withQuantity(Integer.parseInt(quantityCCP))
-                        .withCurrency(currencyCCP)
-                        .withAmount(Float.parseFloat(amountCCP))
+                final CcpTrade ccpTrade = new CcpTrade.CcpTradeBuilder(getExchangeReferenceCcp())
+                        .withTradeDate(getTradeDateCcp())
+                        .withIsin(getIsinCcp())
+                        .withDirection(getTradeDirectionCcp())
+                        .withQuantity(getTradeQuantityCcp())
+                        .withCurrency(getTradeCurrencyCcp())
+                        .withAmount(getTradeAmountCcp())
                         .build();
 
                 final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
@@ -190,215 +366,76 @@ public class ConcordionTradesTest {
                 supervisor.tell(new NewCcpTradeMessage(ccpTrade), getTestActor());
                 Utils.delayExec(RESULTS_DELAY_MS);
                 supervisor.tell(new TradesMatchRequest(), getTestActor());
-
                 final TradesMatchResponse response = expectMsgClass(TradesMatchResponse.class);
 
                 new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
                     protected void run() {
                         Map<String, TradeOutput<Trade>> matchedTradesMap = response.getMatchedTradesMap();
                         Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = response.getMatchedCcpTradesMap();
-
-                        canPerformATradeMAtch.complete(matchedTradesMap.keySet().iterator().next());
-                        canPerformACcpMAtch.complete(matchedCcpTradesMap.keySet().iterator().next());
-
-                        logger.info("Perform a Trade and Ccp Match - Trade {} on thread {}", this.getClass().getSimpleName(), Thread.currentThread().getName());
+                        if (matchedCcpTradesMap.size() != 0 && matchedTradesMap.size() != 0) {
+                            canPerformATradeMAtch.complete(matchedTradesMap.keySet().iterator().next());
+                            canPerformACcpMAtch.complete(matchedCcpTradesMap.keySet().iterator().next());
+                            logger.info("Perform a Trade and Ccp Match - Trade {} on thread {}", this.getClass().getSimpleName(), Thread.currentThread().getName());
+                        } else {
+                            logger.error("Trade Map is empty no matching elements in the list of trades ");
+                            flag[0] = 1;
+                        }
                         stopActors2();
                     }
                 };
-            }};
+            }
+        };
         TradeValues tradeV = new TradeValues();
-        try {
-            tradeV.exchangeRef = canPerformATradeMAtch.get();
-            tradeV.ccpExchangeRef = canPerformACcpMAtch.get();
-            return tradeV;
-        } catch (InterruptedException e) {
-            tradeV.exchangeRef = "ERROR";
-            tradeV.ccpExchangeRef = "ERROR";
-            return tradeV;
-        } catch (ExecutionException e) {
-            tradeV.exchangeRef = "ERROR";
-            tradeV.ccpExchangeRef = "ERROR";
-            return tradeV;
+        if (flag[0] == 0) {
+            try {
+                tradeV.exchangeRef = canPerformATradeMAtch.get();
+                tradeV.ccpExchangeRef = canPerformACcpMAtch.get();
+                return tradeV;
+            } catch (InterruptedException e) {
+                tradeV.exchangeRef = "ERROR";
+                tradeV.ccpExchangeRef = "ERROR";
+                return tradeV;
+            } catch (ExecutionException e) {
+                tradeV.exchangeRef = "ERROR";
+                tradeV.ccpExchangeRef = "ERROR";
+                return tradeV;
+            }
         }
+        tradeV.exchangeRef = "ERROR";
+        tradeV.ccpExchangeRef = "ERROR";
+        return tradeV;
     }
-class TradeValues{
-    public String exchangeRef;
-    public String ccpExchangeRef;
-    public Integer unmatchVal;
-    public TradeValues() {
-        this.exchangeRef = exchangeRef;
-        this.ccpExchangeRef = ccpExchangeRef;
-        this.unmatchVal = unmatchVal;
-    }
-    public String gettradeRef() {
+
+
+    class TradeValues {
+        public String exchangeRef;
+        public String ccpExchangeRef;
+        public Integer unmatchVal;
+
+        public TradeValues() {
+            this.exchangeRef = exchangeRef;
+            this.ccpExchangeRef = ccpExchangeRef;
+            this.unmatchVal = unmatchVal;
+        }
+
+        public String gettradeRef() {
             return exchangeRef;
         }
 
-    public String getccpRef() {
+        public String getccpRef() {
             return ccpExchangeRef;
         }
-    public Integer getunmatchVal() {
-        return unmatchVal;
+
+        public Integer getunmatchVal() {
+            return unmatchVal;
+        }
+
     }
 
-}
-    public void abc(ExcelTrade excelTrade) {
-        //ExcelTrade excelTrade;// = new ExcelTrade();
-
-        System.out.println(excelTrade.getExchangeReference());
-        System.out.println("cucu");
-    }
-
-
-//    public String canIdentifyUnmatchedTrades(String externalReference, String externalReferenceCCP, String tradeReference,
-//                                            String tradeDate, String tradeDateCCP, String is2in, String is2inCCP,
-//                                            String direction, String directionCCP,
-//                                            String quantity, String quantityCCP, String currency, String currencyCCP,
-//                                            String amount, String amountCCP) throws ParseException {
-//
-//        CompletableFuture<Trade> canIdentifyUnmatchedTrades = new CompletableFuture<>();
-//        CompletableFuture<CcpTrade> canIdentifyUnmatchedCcpTrades = new CompletableFuture<>();
-//
-//        new JavaTestKit(system) {{
-//            logger.info("Starting canIdentifyUnmatchedTrades()...");
-//            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
-//
-//            final Trade trade = new Trade.TradeBuilder(externalReference)
-//                    .withReference(tradeReference)
-//                    .withTradeDate(Utils.getZonedDateTime(tradeDate))
-//                    .withIsin(is2in)
-//                    .withDirection(TradeDirection.valueOf(direction))
-//                    .withQuantity(Integer.parseInt(quantity))
-//                    .withCurrency(currency)
-//                    .withAmount(Float.parseFloat(amount))
-//                    .build();
-//
-//            final CcpTrade ccpTrade = new CcpTrade.CcpTradeBuilder(externalReferenceCCP)
-//                    .withTradeDate(Utils.getZonedDateTime(tradeDateCCP))
-//                    .withIsin(is2inCCP)
-//                    .withDirection(TradeDirection.valueOf(directionCCP))
-//                    .withQuantity(Integer.parseInt(quantityCCP))
-//                    .withCurrency(currencyCCP)
-//                    .withAmount(Float.parseFloat(amountCCP))
-//                    .build();
-//
-//            supervisor.tell(new NewTradeMessage(trade), getTestActor());
-//            supervisor.tell(new NewCcpTradeMessage(ccpTrade), getTestActor());
-//            supervisor.tell(new TradesRequest(UUID.randomUUID().toString(), RequestType.GET_UNMATCHED_TRADES), getTestActor());
-//
-//            final TradesResponseMessage response = expectMsgClass(TradesResponseMessage.class);
-//
-//            new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
-//                protected void run() {
-////                    assertEquals(1, response.getTrades().size());
-////                    assertEquals(1, response.getCcpTrades().size());
-////                    assertEquals(trade, response.getTrades().get(0));
-////                    assertEquals(ccpTrade, response.getCcpTrades().get(0));
-//                    canIdentifyUnmatchedTrades.complete(response.getTrades().get(0));
-//                    canIdentifyUnmatchedCcpTrades.complete(response.getCcpTrades().get(0));
-//                    logger.info("Identify the Unmatch trade ");
-//                }
-//            };
-//
-//        }};
-//        try {
-//            return canIdentifyUnmatchedTrades.get().getExchangeReference();
-//        } catch (InterruptedException e) {
-//            return "ERROR";
-//        } catch (ExecutionException e) {
-//            return "ERROR";
-//        }
-//    }
 
     private TestActorRef getSupervisorActor() {
         String name = Constants.SUPERVISOR_CLASS.getSimpleName();
         return TestActorRef.create(system, Props.create(Constants.SUPERVISOR_CLASS), name);
-    }
-
-    class ExcelTrade{
-        String tradeReference;
-        String exchangeReference;
-       // ZonedDateTime tradeDate;
-        String isin;
-        TradeDirection tradeDirection;
-        Integer quantity;
-        String currency;
-        Float amount;
-
-        public ExcelTrade() {
-            this.tradeReference = tradeReference;
-            this.exchangeReference = exchangeReference;
-         //   this.tradeDate = tradeDate;
-            this.isin = isin;
-            this.tradeDirection = tradeDirection;
-            this.quantity = quantity;
-            this.currency = currency;
-            this.amount = amount;
-        }
-
-        public String getTradeReference() {
-            return tradeReference;
-        }
-
-        public String getExchangeReference() {
-            return exchangeReference;
-        }
-
-        //public ZonedDateTime getTradeDate() {
-         //   return tradeDate;
-        //}
-
-        public String getIsin() {
-            return isin;
-        }
-
-        public TradeDirection getTradeDirection() {
-            return tradeDirection;
-        }
-
-        public Integer getQuantity() {
-            return quantity;
-        }
-
-        public String getCurrency() {
-            return currency;
-        }
-
-        public Float getAmount() {
-            return amount;
-        }
-
-        public void setTradeReference(String tradeReference) {
-            this.tradeReference = tradeReference;
-        }
-
-        public void setExchangeReference(String exchangeReference) {
-            this.exchangeReference = exchangeReference;
-        }
-
-//        public void setTradeDate(ZonedDateTime tradeDate) {
-//            this.tradeDate = tradeDate;
-//        }
-
-        public void setIsin(String isin) {
-            this.isin = isin;
-        }
-
-        public void setTradeDirection(TradeDirection tradeDirection) {
-            this.tradeDirection = tradeDirection;
-        }
-
-        public void setQuantity(Integer quantity) {
-            this.quantity = quantity;
-        }
-
-        public void setCurrency(String currency) {
-            this.currency = currency;
-        }
-
-        public void setAmount(Float amount) {
-            this.amount = amount;
-        }
     }
 
 }
