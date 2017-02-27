@@ -16,18 +16,15 @@ import mihai.dto.Trade;
 import mihai.dto.TradeOutput;
 import mihai.messages.*;
 import mihai.utils.Constants;
+import mihai.utils.TradeComment;
 import mihai.utils.TradeDirection;
 import mihai.utils.Utils;
 import org.concordion.api.AfterExample;
-import org.concordion.api.Scope;
 import org.concordion.api.extension.Extensions;
-import org.concordion.api.ConcordionScoped;
 import org.concordion.api.option.ConcordionOptions;
-import org.concordion.api.option.MarkdownExtensions;
 import org.concordion.ext.timing.TimerExtension;
 import org.concordion.integration.junit4.ConcordionRunner;
 import org.concordion.logback.LogbackAdaptor;
-import org.concordion.logback.filter.MarkerFilter;
 import org.concordion.slf4j.ext.ReportLogger;
 import org.concordion.slf4j.ext.ReportLoggerFactory;
 import org.junit.AfterClass;
@@ -36,7 +33,6 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
-import org.slf4j.helpers.MarkerIgnoringBase;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -49,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 
 @RunWith(ConcordionRunner.class)
 @Extensions(value = TimerExtension.class)
+//@Extensions(RunTotalsExtension.class)
 @ConcordionOptions(copySourceHtmlToDir="C:/tmp")
 //@FailFast
 public class ConcordionTradesTest {
@@ -56,22 +53,22 @@ public class ConcordionTradesTest {
     private final static int RESULTS_DELAY_MS = 50;
     private final ReportLogger logger = ReportLoggerFactory.getReportLogger(this.getClass().getName());
     private final Logger tooltipLogger = LoggerFactory.getLogger("TOOLTIP_" + this.getClass().getName());
-    String tradeReference;
-    String exchangeReference;
-    ZonedDateTime tradeDate;
-    String isin;
-    TradeDirection tradeDirection;
-    Integer tradeQuantity;
-    String tradeCurrency;
-    Float tradeAmount;
-
-    String exchangeReferenceCcp;
-    ZonedDateTime tradeDateCcp;
-    String isinCcp;
-    TradeDirection tradeDirectionCcp;
-    Integer tradeQuantityCcp;
-    String tradeCurrencyCcp;
-    Float tradeAmountCcp;
+    private String tradeReference;
+    private String exchangeReference;
+    private ZonedDateTime tradeDate;
+    private String isin;
+    private TradeDirection tradeDirection;
+    private Integer tradeQuantity;
+    private String tradeCurrency;
+    private Float tradeAmount;
+    private String exchangeReferenceCcp;
+    private ZonedDateTime tradeDateCcp;
+    private String isinCcp;
+    private TradeDirection tradeDirectionCcp;
+    private Integer tradeQuantityCcp;
+    private String tradeCurrencyCcp;
+    private Float tradeAmountCcp;
+    private static  int scenarioCounter;
 
 
     public ConcordionTradesTest() {
@@ -270,6 +267,30 @@ public class ConcordionTradesTest {
             supervisor.tell(PoisonPill.getInstance(), null);
         }};
     }
+    public Trade loadTradeData() {
+        final Trade trade = new Trade.TradeBuilder(getExchangeReference())
+                .withReference(getTradeReference())
+                .withTradeDate(getTradeDate())
+                .withIsin(getIsin())
+                .withDirection(getTradeDirection())
+                .withQuantity(getTradeQuantity())
+                .withCurrency(getTradeCurrency())
+                .withAmount(getTradeAmount())
+                .build();
+        return trade;
+    }
+
+    public CcpTrade loadCcpTradeData(){
+        final CcpTrade ccpTrade = new CcpTrade.CcpTradeBuilder(getExchangeReferenceCcp())
+                .withTradeDate(getTradeDateCcp())
+                .withIsin(getIsinCcp())
+                .withDirection(getTradeDirectionCcp())
+                .withQuantity(getTradeQuantityCcp())
+                .withCurrency(getTradeCurrencyCcp())
+                .withAmount(getTradeAmountCcp())
+                .build();
+        return ccpTrade;
+    }
 
     public Integer canAddATrade() {
         CompletableFuture<Integer> canAddATrade = new CompletableFuture<>();
@@ -341,25 +362,10 @@ public class ConcordionTradesTest {
         final byte[] flag = {0};
         new JavaTestKit(system) {
             {
-                logger.info("Perform a Match starting ...");
-                final Trade trade = new Trade.TradeBuilder(getExchangeReference())
-                        .withReference(getTradeReference())
-                        .withTradeDate(getTradeDate())
-                        .withIsin(getIsin())
-                        .withDirection(getTradeDirection())
-                        .withQuantity(getTradeQuantity())
-                        .withCurrency(getTradeCurrency())
-                        .withAmount(getTradeAmount())
-                        .build();
+                logger.info("Perform Matching starting ...");
 
-                final CcpTrade ccpTrade = new CcpTrade.CcpTradeBuilder(getExchangeReferenceCcp())
-                        .withTradeDate(getTradeDateCcp())
-                        .withIsin(getIsinCcp())
-                        .withDirection(getTradeDirectionCcp())
-                        .withQuantity(getTradeQuantityCcp())
-                        .withCurrency(getTradeCurrencyCcp())
-                        .withAmount(getTradeAmountCcp())
-                        .build();
+                Trade trade = loadTradeData();
+                CcpTrade ccpTrade = loadCcpTradeData();
 
                 final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
                 supervisor.tell(new NewTradeMessage(trade), getTestActor());
@@ -404,6 +410,97 @@ public class ConcordionTradesTest {
         tradeV.exchangeRef = "ERROR";
         tradeV.ccpExchangeRef = "ERROR";
         return tradeV;
+    }
+
+    public String matchingTest() {
+        CompletableFuture<String> matching = new CompletableFuture<>();
+        new JavaTestKit(system) {{
+            logger.info("Perform a Match Scenario " + String.valueOf(++scenarioCounter));
+
+            final TestActorRef<SupervisorActor> supervisor = getSupervisorActor();
+
+            Trade trade = loadTradeData();
+            CcpTrade ccpTrade = loadCcpTradeData();
+            NewTradeMessage newTradeMessage = new NewTradeMessage(trade);
+            supervisor.tell(newTradeMessage, getTestActor());
+            NewCcpTradeMessage newCcpTradeMessage = new NewCcpTradeMessage(ccpTrade);
+            supervisor.tell(newCcpTradeMessage, getTestActor());
+
+            Utils.delayExec(RESULTS_DELAY_MS);
+            supervisor.tell(new TradesMatchRequest(), getTestActor());
+            TradesMatchResponse response = expectMsgClass(new FiniteDuration(20, TimeUnit.SECONDS), TradesMatchResponse.class);
+
+            new Within(new FiniteDuration(20, TimeUnit.SECONDS)) {
+                protected void run() {
+                      Map<String, TradeOutput<Trade>> matchedTradesMap = response.getMatchedTradesMap();
+                      Map<String, TradeOutput<CcpTrade>> matchedCcpTradesMap = response.getMatchedCcpTradesMap();
+                      Map<String, TradeOutput<Trade>> unmatchedTradesMap = response.getUnmatchedTradesMap();
+                      Map<String, TradeOutput<CcpTrade>> unmatchedCcpTradesMap = response.getUnmatchedCcpTradesMap();
+
+
+                    for (TradeOutput<Trade> tradeOutput : matchedTradesMap.values()) {
+                        if (tradeOutput.getComment().equals(TradeComment.FULL_MATCH.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("Trade perform a Full Match ...");
+                        }
+                        if (tradeOutput.getComment().equals(TradeComment.MATCH_WITHIN_TOLERANCE_FOR_AMOUNT.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("Trade match within tolerance for amount");
+                        }
+                    }
+
+                    for (TradeOutput<Trade> tradeOutput : unmatchedTradesMap.values()) {
+                        if (tradeOutput.getComment().equals(TradeComment.UNMATCH_ECONOMICS_MISMATCH.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("Unmatch trade, economics mismatch ...");
+                        }
+                        if (tradeOutput.getComment().equals(TradeComment.UNMATCH_OUTSIDE_OF_TOLERANCE_FOR_AMOUNT.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("Unmatch trade, outside of tolerance for amount ...");
+                        }
+                        if (tradeOutput.getComment().equals(TradeComment.CCP_TRADE_UNMATCH.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("CCP Trade unmatch ...");
+                        }
+                    }
+
+                    for (TradeOutput<CcpTrade> tradeOutput : matchedCcpTradesMap.values()) {
+                        if (tradeOutput.getComment().equals(TradeComment.FULL_MATCH.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("Ccp matching ...");
+                        }
+                        if (tradeOutput.getComment().equals(TradeComment.MATCH_WITHIN_TOLERANCE_FOR_AMOUNT.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("CCP match within tolerance for amount ...");
+                        }
+                    }
+
+                    for (TradeOutput<CcpTrade> tradeOutput : unmatchedCcpTradesMap.values()) {
+                        if (tradeOutput.getComment().equals(TradeComment.UNMATCH_ECONOMICS_MISMATCH.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("CCP unmatch, economics mismatch ...");
+                        }
+                        if (tradeOutput.getComment().equals(TradeComment.UNMATCH_OUTSIDE_OF_TOLERANCE_FOR_AMOUNT.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("CCP unmatch, outside of tolerance for amount ...");
+                        }
+
+                        if (tradeOutput.getComment().equals(TradeComment.CCP_TRADE_UNMATCH.getComment())) {
+                            matching.complete(tradeOutput.getComment());
+                            logger.info("CCP unmatch ...");
+                        }
+                    }
+                    stopActors2();
+                }
+            };
+        }};
+        try {
+            return matching.get().toString();
+        } catch (InterruptedException e) {
+            return "ERROR";
+        } catch (ExecutionException e) {
+            return "ERROR";
+        }
     }
 
 
